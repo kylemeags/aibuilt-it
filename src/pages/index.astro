@@ -1,0 +1,65 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+import { formatDate } from '../utils/date';
+
+const articles = (await getCollection('articles')).sort(
+  (a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime()
+);
+---
+
+<BaseLayout title="aibuilt-it - Articles">
+  <section>
+    <div class="mb-12">
+      <h1 class="text-5xl font-bold text-gray-900 mb-4">aibuilt-it</h1>
+      <p class="text-lg text-gray-600">
+        A minimal blog built with Astro. Fast, clean, and no bloat.
+      </p>
+    </div>
+
+    <div class="space-y-8">
+      {articles.map((article) => (
+        <article class="pb-8 border-b border-gray-200 last:border-0">
+          <a href={`/${article.slug}`} class="group">
+            <h2 class="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+              {article.data.title}
+            </h2>
+          </a>
+
+          <div class="mt-2 flex flex-col sm:flex-row sm:items-center sm:gap-4 text-sm text-gray-600">
+            <time datetime={article.data.date.toISOString()}>
+              {formatDate(article.data.date)}
+            </time>
+            <div class="flex gap-2">
+              {article.data.tags.map((tag) => (
+                <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <p class="mt-4 text-gray-700 leading-relaxed">
+            {article.data.excerpt}
+          </p>
+
+          <a
+            href={`/${article.slug}`}
+            class="mt-4 inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium text-sm"
+          >
+            Read more
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+        </article>
+      ))}
+    </div>
+
+    {articles.length === 0 && (
+      <div class="text-center py-12">
+        <p class="text-gray-600">No articles yet. Check back soon!</p>
+      </div>
+    )}
+  </section>
+</BaseLayout>
