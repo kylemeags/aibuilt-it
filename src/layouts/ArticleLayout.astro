@@ -6,20 +6,26 @@ interface Props {
   title: string;
   date: Date;
   tags: string[];
+  excerpt?: string;
 }
 
-const { title, date, tags } = Astro.props;
+const { title, date, tags, excerpt } = Astro.props;
 ---
 
-<BaseLayout title={title}>
-  <article class="prose prose-sm max-w-none">
-    <header class="mb-8">
-      <h1 class="text-4xl font-bold mb-4 text-gray-900">{title}</h1>
-      <div class="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-sm text-gray-600">
+<BaseLayout
+  title={`${title} — aibuilt.it`}
+  description={excerpt || `Read "${title}" on aibuilt.it`}
+  articleDate={date.toISOString()}
+>
+  <article>
+    <header class="mb-10">
+      <h1 class="text-3xl sm:text-4xl font-bold mb-4 text-gray-900 leading-tight">{title}</h1>
+      <div class="flex flex-wrap items-center gap-3 text-sm text-gray-500">
         <time datetime={date.toISOString()}>{formatDate(date)}</time>
-        <div class="flex gap-2">
+        <span class="text-gray-300">·</span>
+        <div class="flex flex-wrap gap-2">
           {tags.map((tag) => (
-            <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+            <span class="px-2.5 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
               {tag}
             </span>
           ))}
@@ -27,17 +33,20 @@ const { title, date, tags } = Astro.props;
       </div>
     </header>
 
-    <div class="mt-8 prose prose-sm max-w-none prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline">
+    <div class="prose max-w-none">
       <slot />
     </div>
   </article>
 
   <nav class="mt-12 pt-8 border-t border-gray-200">
-    <a href="/" class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700">
+    <a
+      href="/"
+      class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium min-h-[44px]"
+    >
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
       </svg>
-      Back to articles
+      All articles
     </a>
   </nav>
 </BaseLayout>

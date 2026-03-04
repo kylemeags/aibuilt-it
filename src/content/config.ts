@@ -6,6 +6,7 @@ const articles = defineCollection({
     date: z.coerce.date(),
     tags: z.array(z.string()),
     excerpt: z.string(),
+    author: z.string().optional().default('aibuilt.it'),
   }),
 });
 
