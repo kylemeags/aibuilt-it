@@ -9,7 +9,8 @@
  * Usage: node agents/content-agent.js
  */
 
-import 'dotenv/config';
+import { config } from 'dotenv';
+config({ override: true });
 import { Client } from '@notionhq/client';
 import Anthropic from '@anthropic-ai/sdk';
 

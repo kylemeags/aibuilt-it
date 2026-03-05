@@ -10,7 +10,8 @@
  * Usage: node agents/publish-agent.js
  */
 
-import 'dotenv/config';
+import { config } from 'dotenv';
+config({ override: true });
 import { Client } from '@notionhq/client';
 import simpleGit from 'simple-git';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';

@@ -11,7 +11,8 @@
  *        node agents/research-agent.js "web development"
  */
 
-import 'dotenv/config';
+import { config } from 'dotenv';
+config({ override: true });
 import { Client } from '@notionhq/client';
 import Parser from 'rss-parser';
 
@@ -147,7 +148,7 @@ async function pushToNotion(topics) {
           'Source URL': { url: topic.url || null },
           Summary: { rich_text: [{ text: { content: topic.summary.slice(0, 2000) } }] },
           Score: { number: topic.score },
-          Date: { date: { start: new Date().toISOString().split('T')[0] } },
+          'Date Added': { date: { start: new Date().toISOString().split('T')[0] } },
         },
       });
       pushed++;
