@@ -1,242 +1,238 @@
 #!/usr/bin/env node
 /**
- * research-agent.js
+ * research-agent.js — Multi-Source Research Orchestrator
  *
- * Fetches recent items from RSS feeds for a given niche,
- * scores them for relevance/recency,
- * deduplicates against existing Notion Topic Queue entries,
- * and pushes the top 10 new topics to Notion.
+ * Scrapes Reddit, HackerNews, ProductHunt, and RSS feeds for real AI
+ * implementation stories, scores them for relevance, deduplicates
+ * against Notion, captures media, and pushes top results to the
+ * Notion Topic Queue.
  *
- * Usage: node agents/research-agent.js "artificial intelligence"
- *        node agents/research-agent.js "web development"
+ * Usage:
+ *   node agents/research-agent.js              # all sources
+ *   node agents/research-agent.js --reddit     # Reddit only
+ *   node agents/research-agent.js --hn         # HackerNews only
+ *   node agents/research-agent.js --ph         # ProductHunt only
+ *   node agents/research-agent.js --rss        # RSS only
+ *   node agents/research-agent.js --no-media   # skip media capture
  */
 
 import { config } from 'dotenv';
 config({ override: true });
 import { Client } from '@notionhq/client';
-import Parser from 'rss-parser';
+
+import { fetchReddit } from './sources/reddit.js';
+import { fetchHackerNews } from './sources/hackernews.js';
+import { fetchProductHunt } from './sources/producthunt.js';
+import { fetchRSS } from './sources/rss.js';
+import { filterByRelevance, classifyContentType, classifyCategory } from './filters/relevance.js';
+import { deduplicateAgainstNotion } from './filters/dedup.js';
+import { captureMediaFromItem } from './media/capture.js';
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
-const parser = new Parser({ timeout: 10000 });
-
 const TOPIC_QUEUE_DB = process.env.NOTION_TOPIC_QUEUE_DB;
 
-// RSS feeds organized by niche keywords
-const FEED_MAP = {
-  ai: [
-    'https://feeds.feedburner.com/TheHackersNews',
-    'https://techcrunch.com/category/artificial-intelligence/feed/',
-    'https://www.theverge.com/ai-artificial-intelligence/rss/index.xml',
-    'https://venturebeat.com/category/ai/feed/',
-    'https://blog.google/technology/ai/rss/',
-  ],
-  'artificial intelligence': [
-    'https://feeds.feedburner.com/TheHackersNews',
-    'https://techcrunch.com/category/artificial-intelligence/feed/',
-    'https://www.theverge.com/ai-artificial-intelligence/rss/index.xml',
-    'https://venturebeat.com/category/ai/feed/',
-    'https://blog.google/technology/ai/rss/',
-  ],
-  'web development': [
-    'https://css-tricks.com/feed/',
-    'https://feeds.feedburner.com/AlistApart',
-    'https://blog.chromium.org/feeds/posts/default?alt=rss',
-    'https://developer.mozilla.org/en-US/blog/rss.xml',
-    'https://web.dev/feed.xml',
-  ],
-  'web dev': [
-    'https://css-tricks.com/feed/',
-    'https://feeds.feedburner.com/AlistApart',
-    'https://blog.chromium.org/feeds/posts/default?alt=rss',
-    'https://developer.mozilla.org/en-US/blog/rss.xml',
-    'https://web.dev/feed.xml',
-  ],
-  tech: [
-    'https://techcrunch.com/feed/',
-    'https://www.theverge.com/rss/index.xml',
-    'https://arstechnica.com/feed/',
-    'https://feeds.feedburner.com/TheHackersNews',
-    'https://www.wired.com/feed/rss',
-  ],
-  business: [
-    'https://hbr.org/resources/pdfs/rss/hbrfeed.xml',
-    'https://feeds.feedburner.com/venturebeat/SZYF',
-    'https://techcrunch.com/feed/',
-    'https://a16z.com/feed/',
-    'https://www.fastcompany.com/latest/rss',
-  ],
-  default: [
-    'https://techcrunch.com/feed/',
-    'https://www.theverge.com/rss/index.xml',
-    'https://arstechnica.com/feed/',
-    'https://feeds.feedburner.com/TheHackersNews',
-    'https://venturebeat.com/feed/',
-  ],
-};
+// ── CLI flags ───────────────────────────────────────────────────────
+const args = new Set(process.argv.slice(2).map(a => a.toLowerCase()));
+const sourceFlags = ['--reddit', '--hn', '--ph', '--rss'];
+const hasSourceFlag = sourceFlags.some(f => args.has(f));
+const runAll = !hasSourceFlag;
+const skipMedia = args.has('--no-media');
 
-function richTextToPlain(richText) {
-  if (!richText || !Array.isArray(richText)) return '';
-  return richText.map((t) => t.plain_text || '').join('');
-}
+const runReddit = runAll || args.has('--reddit');
+const runHN = runAll || args.has('--hn');
+const runPH = runAll || args.has('--ph');
+const runRSS = runAll || args.has('--rss');
 
-function getFeedsForNiche(niche) {
-  const key = niche.toLowerCase();
-  return FEED_MAP[key] || FEED_MAP.default;
-}
-
-function detectNiche(keyword) {
-  const lower = keyword.toLowerCase();
-  if (lower.includes('ai') || lower.includes('artificial') || lower.includes('machine learning'))
-    return 'AI';
-  if (lower.includes('web') || lower.includes('css') || lower.includes('javascript'))
-    return 'Web Dev';
-  if (lower.includes('business') || lower.includes('startup') || lower.includes('venture'))
-    return 'Business';
-  return 'Tech';
-}
-
-function scoreItem(item, keyword) {
-  let score = 0;
-  const title = (item.title || '').toLowerCase();
-  const content = (item.contentSnippet || item.content || '').toLowerCase();
-  const keywordLower = keyword.toLowerCase();
-  const terms = keywordLower.split(/\s+/);
-
-  // Relevance: keyword in title = high score
-  for (const term of terms) {
-    if (title.includes(term)) score += 30;
-    if (content.includes(term)) score += 10;
-  }
-
-  // Recency: newer = higher score
-  if (item.pubDate) {
-    const age = Date.now() - new Date(item.pubDate).getTime();
-    const daysOld = age / (1000 * 60 * 60 * 24);
-    if (daysOld < 1) score += 50;
-    else if (daysOld < 3) score += 30;
-    else if (daysOld < 7) score += 15;
-    else if (daysOld < 14) score += 5;
-  }
-
-  return score;
-}
-
-async function getExistingTopics() {
-  const response = await notion.databases.query({
-    database_id: TOPIC_QUEUE_DB,
-    page_size: 100,
-  });
-
-  return new Set(
-    response.results.map((page) => {
-      const title = richTextToPlain(page.properties.Topic?.title || []);
-      return title.toLowerCase().trim();
-    })
-  );
-}
-
-async function pushToNotion(topics) {
-  let pushed = 0;
-  for (const topic of topics) {
-    try {
-      await notion.pages.create({
-        parent: { database_id: TOPIC_QUEUE_DB },
-        properties: {
-          Topic: { title: [{ text: { content: topic.title } }] },
-          Status: { select: { name: 'Queued' } },
-          Niche: { select: { name: topic.niche } },
-          'Source URL': { url: topic.url || null },
-          Summary: { rich_text: [{ text: { content: topic.summary.slice(0, 2000) } }] },
-          Score: { number: topic.score },
-          'Date Added': { date: { start: new Date().toISOString().split('T')[0] } },
-        },
-      });
-      pushed++;
-    } catch (error) {
-      console.error(`   ❌ Failed to push "${topic.title}":`, error.message);
-    }
-  }
-  return pushed;
-}
-
+// ── Main ────────────────────────────────────────────────────────────
 async function main() {
-  const keyword = process.argv[2];
-  if (!keyword) {
-    console.error('Usage: node agents/research-agent.js "your niche keyword"');
-    process.exit(1);
-  }
+  console.log('🔍 Research Agent — Multi-Source Orchestrator\n');
+  console.log(`   Sources: ${[
+    runReddit && 'Reddit',
+    runHN && 'HackerNews',
+    runPH && 'ProductHunt',
+    runRSS && 'RSS',
+  ].filter(Boolean).join(', ')}`);
+  console.log(`   Media capture: ${skipMedia ? 'OFF' : 'ON'}\n`);
 
-  console.log(`🔍 Research Agent starting for: "${keyword}"\n`);
+  // ── 1. Fetch from all sources in parallel ──────────────────────
+  console.log('📡 Fetching from sources...\n');
+  const fetchers = [];
+  if (runReddit) fetchers.push({ name: 'Reddit', fn: fetchReddit });
+  if (runHN) fetchers.push({ name: 'HackerNews', fn: fetchHackerNews });
+  if (runPH) fetchers.push({ name: 'ProductHunt', fn: fetchProductHunt });
+  if (runRSS) fetchers.push({ name: 'RSS', fn: () => fetchRSS('ai') });
 
-  const niche = detectNiche(keyword);
-  const feeds = getFeedsForNiche(keyword);
-  console.log(`📡 Fetching ${feeds.length} RSS feeds for niche: ${niche}\n`);
+  const results = await Promise.allSettled(fetchers.map(f => f.fn()));
 
-  // Fetch all feeds
-  const allItems = [];
-  for (const feedUrl of feeds) {
-    try {
-      const feed = await parser.parseURL(feedUrl);
-      const items = (feed.items || []).slice(0, 20); // max 20 per feed
-      console.log(`   ✅ ${feed.title || feedUrl}: ${items.length} items`);
-      allItems.push(
-        ...items.map((item) => ({
-          title: (item.title || '').trim(),
-          url: item.link || '',
-          summary: (item.contentSnippet || item.content || '').slice(0, 300).trim(),
-          pubDate: item.pubDate,
-          score: scoreItem(item, keyword),
-          niche,
-        }))
-      );
-    } catch (error) {
-      console.log(`   ⚠️  Failed to fetch ${feedUrl}: ${error.message}`);
+  let allItems = [];
+  results.forEach((result, i) => {
+    const { name } = fetchers[i];
+    if (result.status === 'fulfilled') {
+      const items = result.value || [];
+      console.log(`   ✅ ${name}: ${items.length} items`);
+      allItems.push(...items);
+    } else {
+      console.log(`   ❌ ${name}: ${result.reason?.message || 'Unknown error'}`);
     }
-  }
-
-  console.log(`\n📊 Total items fetched: ${allItems.length}`);
-
-  // Score and sort
-  allItems.sort((a, b) => b.score - a.score);
-
-  // Deduplicate against existing Notion entries
-  console.log('🔄 Checking for duplicates in Notion...');
-  const existingTopics = await getExistingTopics();
-
-  const newTopics = allItems.filter((item) => {
-    const titleLower = item.title.toLowerCase().trim();
-    if (!titleLower) return false;
-    // Check for exact match or significant overlap
-    for (const existing of existingTopics) {
-      if (titleLower === existing) return false;
-      // Simple overlap check
-      const words = titleLower.split(/\s+/);
-      const existingWords = existing.split(/\s+/);
-      const overlap = words.filter((w) => existingWords.includes(w)).length;
-      if (overlap > words.length * 0.7) return false;
-    }
-    return true;
   });
 
-  console.log(`   ${allItems.length - newTopics.length} duplicates removed`);
-  console.log(`   ${newTopics.length} new topics available\n`);
+  console.log(`\n📊 Total raw items: ${allItems.length}`);
 
-  // Take top 10
-  const top10 = newTopics.slice(0, 10);
-
-  if (top10.length === 0) {
-    console.log('No new topics to add. Try a different keyword or wait for fresh content.');
+  if (allItems.length === 0) {
+    console.log('\nNo items found. Check your network connection or try again later.');
     return;
   }
 
-  console.log('📤 Pushing top topics to Notion:\n');
-  top10.forEach((t, i) => {
-    console.log(`   ${i + 1}. [Score: ${t.score}] ${t.title}`);
-  });
-  console.log('');
+  // ── 2. Score for relevance ─────────────────────────────────────
+  console.log('\n🎯 Scoring for relevance...');
+  const relevant = filterByRelevance(allItems, 15);
+  console.log(`   ${relevant.length} items passed relevance filter (of ${allItems.length})`);
 
-  const pushed = await pushToNotion(top10);
-  console.log(`\n🎉 Research Agent finished! Pushed ${pushed} topics to Notion.`);
+  if (relevant.length === 0) {
+    console.log('\nNo items passed the relevance filter. Lowering threshold or checking sources may help.');
+    return;
+  }
+
+  // ── 3. Classify content type and category ──────────────────────
+  for (const item of relevant) {
+    item.contentType = classifyContentType(item);
+    item.category = classifyCategory(item);
+  }
+
+  // ── 4. Deduplicate against Notion ──────────────────────────────
+  console.log('\n🔄 Deduplicating against Notion...');
+  const unique = await deduplicateAgainstNotion(relevant);
+  console.log(`   ${unique.length} new topics (${relevant.length - unique.length} duplicates removed)`);
+
+  if (unique.length === 0) {
+    console.log('\nAll topics already exist in Notion. Wait for fresh content.');
+    return;
+  }
+
+  // ── 5. Take top 15 ────────────────────────────────────────────
+  const top = unique.slice(0, 15);
+
+  // ── 6. Capture media (optional) ────────────────────────────────
+  let enriched = top;
+  if (!skipMedia) {
+    console.log('\n📸 Capturing media...');
+    enriched = [];
+    for (const item of top) {
+      try {
+        const withMedia = await captureMediaFromItem(item);
+        enriched.push(withMedia);
+        const mediaCount = (withMedia.mediaUrls || []).length;
+        if (mediaCount > 0) {
+          console.log(`   📷 ${item.title.slice(0, 50)}... → ${mediaCount} image(s)`);
+        }
+      } catch (err) {
+        console.log(`   ⚠️  Media capture failed for "${item.title.slice(0, 40)}...": ${err.message}`);
+        enriched.push(item);
+      }
+    }
+  }
+
+  // ── 7. Push to Notion ──────────────────────────────────────────
+  console.log('\n📤 Pushing to Notion Topic Queue...\n');
+  let pushed = 0;
+
+  for (const item of enriched) {
+    try {
+      const properties = {
+        Topic: { title: [{ text: { content: item.title.slice(0, 200) } }] },
+        Status: { select: { name: 'Queued' } },
+        'Source URL': { url: item.sourceUrl || item.url || null },
+        Summary: { rich_text: [{ text: { content: (item.summary || '').slice(0, 2000) } }] },
+        Score: { number: item.score || 0 },
+        'Date Added': { date: { start: new Date().toISOString().split('T')[0] } },
+      };
+
+      // New fields — these may fail if Notion schema hasn't been updated yet
+      // so we wrap them in a try and fall back to basic fields
+      const extraProperties = {};
+
+      // Category (select)
+      if (item.category) {
+        extraProperties.Category = { select: { name: item.category } };
+      }
+
+      // Content Type (select)
+      if (item.contentType) {
+        extraProperties['Content Type'] = { select: { name: item.contentType } };
+      }
+
+      // Source Platform (select)
+      if (item.source) {
+        extraProperties['Source Platform'] = { select: { name: item.source } };
+      }
+
+      // Tool Name (rich text)
+      if (item.toolName) {
+        extraProperties['Tool Name'] = { rich_text: [{ text: { content: item.toolName.slice(0, 200) } }] };
+      }
+
+      // Tool URL (url)
+      if (item.toolUrl) {
+        extraProperties['Tool URL'] = { url: item.toolUrl };
+      }
+
+      // Has Results (checkbox) — true if score contains results/metrics
+      if (item.score > 40) {
+        extraProperties['Has Results'] = { checkbox: true };
+      }
+
+      // Media URLs (rich text, JSON array)
+      if (item.mediaUrls && item.mediaUrls.length > 0) {
+        extraProperties['Media URLs'] = {
+          rich_text: [{ text: { content: JSON.stringify(item.mediaUrls).slice(0, 2000) } }],
+        };
+      }
+
+      // Source Author (rich text)
+      if (item.author) {
+        extraProperties['Source Author'] = { rich_text: [{ text: { content: String(item.author).slice(0, 200) } }] };
+      }
+
+      // Try with all properties first, fall back to basic if Notion schema doesn't have new fields
+      try {
+        await notion.pages.create({
+          parent: { database_id: TOPIC_QUEUE_DB },
+          properties: { ...properties, ...extraProperties },
+        });
+      } catch (schemaErr) {
+        // If extra properties cause errors, try with just basic properties
+        if (schemaErr.code === 'validation_error') {
+          await notion.pages.create({
+            parent: { database_id: TOPIC_QUEUE_DB },
+            properties: {
+              ...properties,
+              Niche: { select: { name: 'AI' } }, // legacy field fallback
+            },
+          });
+        } else {
+          throw schemaErr;
+        }
+      }
+
+      pushed++;
+      console.log(`   ${pushed}. [${item.score}] [${item.source}] ${item.title.slice(0, 70)}`);
+    } catch (err) {
+      console.error(`   ❌ Failed: "${item.title.slice(0, 50)}...": ${err.message}`);
+    }
+  }
+
+  // ── Summary ────────────────────────────────────────────────────
+  console.log(`\n${'═'.repeat(60)}`);
+  console.log(`🎉 Research Agent finished!`);
+  console.log(`   Sources scraped: ${fetchers.length}`);
+  console.log(`   Total items found: ${allItems.length}`);
+  console.log(`   Passed relevance: ${relevant.length}`);
+  console.log(`   New (not dupes): ${unique.length}`);
+  console.log(`   Pushed to Notion: ${pushed}`);
+  console.log(`${'═'.repeat(60)}`);
 }
 
-main().catch(console.error);
+main().catch((err) => {
+  console.error('\n💥 Research Agent failed:', err.message);
+  process.exit(1);
+});

@@ -56,17 +56,35 @@ function buildMarkdown(article) {
   const body = richTextToPlain(props.Body?.rich_text || []);
   const author = richTextToPlain(props.Author?.rich_text || []) || 'aibuilt.it';
 
-  const frontmatter = [
+  // New fields for expanded schema
+  const category = props.Category?.select?.name || 'ai-news';
+  const contentType = props['Content Type']?.select?.name || 'news';
+  const toolName = richTextToPlain(props['Tool Name']?.rich_text || []);
+  const toolUrl = props['Tool URL']?.url || '';
+  const sourceUrl = props['Source URL']?.url || '';
+  const sourcePlatform = props['Source Platform']?.select?.name || '';
+  const heroImage = props['Hero Image']?.url || richTextToPlain(props['Hero Image']?.rich_text || []) || '';
+
+  const frontmatterLines = [
     '---',
     `title: "${title.replace(/"/g, '\\"')}"`,
     `date: ${date}`,
     `tags: [${tags.map((t) => `"${t}"`).join(', ')}]`,
     `excerpt: "${excerpt.replace(/"/g, '\\"')}"`,
     `author: "${author}"`,
-    '---',
-  ].join('\n');
+    `category: "${category}"`,
+    `contentType: "${contentType}"`,
+  ];
 
-  return { slug, content: `${frontmatter}\n\n${body}\n` };
+  if (toolName) frontmatterLines.push(`toolName: "${toolName.replace(/"/g, '\\"')}"`);
+  if (toolUrl) frontmatterLines.push(`toolUrl: "${toolUrl}"`);
+  if (sourceUrl) frontmatterLines.push(`sourceUrl: "${sourceUrl}"`);
+  if (sourcePlatform) frontmatterLines.push(`sourcePlatform: "${sourcePlatform}"`);
+  if (heroImage) frontmatterLines.push(`heroImage: "${heroImage}"`);
+
+  frontmatterLines.push('---');
+
+  return { slug, content: `${frontmatterLines.join('\n')}\n\n${body}\n` };
 }
 
 async function updateNotionStatus(pageId, status) {
