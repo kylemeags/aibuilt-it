@@ -1,0 +1,24 @@
+---
+import { getContentTypeInfo } from '../data/contentTypes';
+import type { ContentType } from '../data/contentTypes';
+
+interface Props {
+  type: string;
+  className?: string;
+}
+
+const { type, className = '' } = Astro.props;
+const info = getContentTypeInfo(type as ContentType);
+---
+
+{info && (
+  <span
+    class:list={[
+      'inline-flex items-center px-2 py-0.5 rounded text-[0.625rem] font-semibold uppercase tracking-wider',
+      info.pillColor,
+      className,
+    ]}
+  >
+    {info.label}
+  </span>
+)}

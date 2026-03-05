@@ -1,0 +1,64 @@
+---
+interface Props {
+  toolName?: string;
+  toolUrl?: string;
+  sourceUrl?: string;
+  sourcePlatform?: string;
+}
+
+const { toolName, toolUrl, sourceUrl, sourcePlatform } = Astro.props;
+
+const shouldRender = toolName || sourceUrl;
+---
+
+{shouldRender && (
+  <aside class="rounded-2xl p-6 bg-white/[0.03] backdrop-blur-[12px] border border-white/[0.06]">
+    <div class="space-y-5">
+      {toolName && (
+        <div>
+          <p class="text-[0.6875rem] font-semibold uppercase tracking-[0.15em] text-zinc-600 mb-2">
+            Tool Used
+          </p>
+          <h4 class="font-display text-lg font-semibold text-white mb-3">
+            {toolName}
+          </h4>
+          {toolUrl && (
+            <a
+              href={toolUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-500 text-white text-sm font-medium hover:bg-indigo-400 transition-colors duration-200"
+            >
+              Try this tool
+              <span aria-hidden="true">&rarr;</span>
+            </a>
+          )}
+        </div>
+      )}
+
+      {sourceUrl && (
+        <div>
+          <p class="text-[0.6875rem] font-semibold uppercase tracking-[0.15em] text-zinc-600 mb-2">
+            Source
+          </p>
+          <p class="text-sm text-slate-400">
+            Originally posted on{' '}
+            <a
+              href={sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-indigo-400 hover:text-indigo-300 transition-colors duration-200 underline underline-offset-2"
+            >
+              {sourcePlatform || 'the original platform'}
+            </a>
+          </p>
+          {sourcePlatform && (
+            <span class="inline-flex items-center mt-2 px-2.5 py-0.5 rounded-full text-[0.6875rem] font-medium bg-white/[0.05] text-slate-400 border border-white/[0.08]">
+              {sourcePlatform}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  </aside>
+)}

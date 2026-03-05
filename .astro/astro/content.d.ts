@@ -141,6 +141,34 @@ declare module 'astro:content' {
 
 	type ContentEntryMap = {
 		"articles": {
+"anthropic-ceo-dario-amodei-calls-openai-s-messaging-around-military-deal-straight-up-lies-report-says.md": {
+	id: "anthropic-ceo-dario-amodei-calls-openai-s-messaging-around-military-deal-straight-up-lies-report-says.md";
+  slug: "anthropic-ceo-dario-amodei-calls-openai-s-messaging-around-military-deal-straight-up-lies-report-says";
+  body: string;
+  collection: "articles";
+  data: InferEntrySchema<"articles">
+} & { render(): Render[".md"] };
+"apple-music-to-add-transparency-tags-to-distinguish-ai-music-says-report.md": {
+	id: "apple-music-to-add-transparency-tags-to-distinguish-ai-music-says-report.md";
+  slug: "apple-music-to-add-transparency-tags-to-distinguish-ai-music-says-report";
+  body: string;
+  collection: "articles";
+  data: InferEntrySchema<"articles">
+} & { render(): Render[".md"] };
+"coruna-ios-exploit-kit-uses-23-exploits-across-five-chains-targeting-ios-13-17-2-1.md": {
+	id: "coruna-ios-exploit-kit-uses-23-exploits-across-five-chains-targeting-ios-13-17-2-1.md";
+  slug: "coruna-ios-exploit-kit-uses-23-exploits-across-five-chains-targeting-ios-13-17-2-1";
+  body: string;
+  collection: "articles";
+  data: InferEntrySchema<"articles">
+} & { render(): Render[".md"] };
+"father-sues-google-claiming-gemini-chatbot-drove-son-into-fatal-delusion.md": {
+	id: "father-sues-google-claiming-gemini-chatbot-drove-son-into-fatal-delusion.md";
+  slug: "father-sues-google-claiming-gemini-chatbot-drove-son-into-fatal-delusion";
+  body: string;
+  collection: "articles";
+  data: InferEntrySchema<"articles">
+} & { render(): Render[".md"] };
 "getting-started.md": {
 	id: "getting-started.md";
   slug: "getting-started";
@@ -148,9 +176,51 @@ declare module 'astro:content' {
   collection: "articles";
   data: InferEntrySchema<"articles">
 } & { render(): Render[".md"] };
+"google-search-rolls-out-gemini-s-canvas-in-ai-mode-to-all-us-users.md": {
+	id: "google-search-rolls-out-gemini-s-canvas-in-ai-mode-to-all-us-users.md";
+  slug: "google-search-rolls-out-gemini-s-canvas-in-ai-mode-to-all-us-users";
+  body: string;
+  collection: "articles";
+  data: InferEntrySchema<"articles">
+} & { render(): Render[".md"] };
+"new-rfp-template-for-ai-usage-control-and-ai-governance.md": {
+	id: "new-rfp-template-for-ai-usage-control-and-ai-governance.md";
+  slug: "new-rfp-template-for-ai-usage-control-and-ai-governance";
+  body: string;
+  collection: "articles";
+  data: InferEntrySchema<"articles">
+} & { render(): Render[".md"] };
+"one-startup-s-pitch-to-provide-more-reliable-ai-answers-crowdsource-the-chatbots.md": {
+	id: "one-startup-s-pitch-to-provide-more-reliable-ai-answers-crowdsource-the-chatbots.md";
+  slug: "one-startup-s-pitch-to-provide-more-reliable-ai-answers-crowdsource-the-chatbots";
+  body: string;
+  collection: "articles";
+  data: InferEntrySchema<"articles">
+} & { render(): Render[".md"] };
+"open-source-cyberstrikeai-deployed-in-ai-driven-fortigate-attacks-across-55-countries.md": {
+	id: "open-source-cyberstrikeai-deployed-in-ai-driven-fortigate-attacks-across-55-countries.md";
+  slug: "open-source-cyberstrikeai-deployed-in-ai-driven-fortigate-attacks-across-55-countries";
+  body: string;
+  collection: "articles";
+  data: InferEntrySchema<"articles">
+} & { render(): Render[".md"] };
 "tailwind-tips.md": {
 	id: "tailwind-tips.md";
   slug: "tailwind-tips";
+  body: string;
+  collection: "articles";
+  data: InferEntrySchema<"articles">
+} & { render(): Render[".md"] };
+"use-canvas-in-ai-mode-to-get-things-done-and-bring-your-ideas-to-life-right-in-search.md": {
+	id: "use-canvas-in-ai-mode-to-get-things-done-and-bring-your-ideas-to-life-right-in-search.md";
+  slug: "use-canvas-in-ai-mode-to-get-things-done-and-bring-your-ideas-to-life-right-in-search";
+  body: string;
+  collection: "articles";
+  data: InferEntrySchema<"articles">
+} & { render(): Render[".md"] };
+"why-ai-startups-are-selling-the-same-equity-at-two-different-prices.md": {
+	id: "why-ai-startups-are-selling-the-same-equity-at-two-different-prices.md";
+  slug: "why-ai-startups-are-selling-the-same-equity-at-two-different-prices";
   body: string;
   collection: "articles";
   data: InferEntrySchema<"articles">

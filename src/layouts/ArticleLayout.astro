@@ -1,52 +1,214 @@
 ---
 import BaseLayout from './BaseLayout.astro';
+import Breadcrumb from '../components/Breadcrumb.astro';
+import CategoryBadge from '../components/CategoryBadge.astro';
+import ContentTypePill from '../components/ContentTypePill.astro';
+import CaseStudyMeta from '../components/CaseStudyMeta.astro';
 import { formatDate } from '../utils/date';
+import { getReadingTime } from '../utils/reading-time';
+import { getCategoryBySlug } from '../data/categories';
 
 interface Props {
   title: string;
   date: Date;
   tags: string[];
   excerpt?: string;
+  author?: string;
+  category?: string;
+  contentType?: string;
+  heroImage?: string;
+  toolName?: string;
+  toolUrl?: string;
+  sourceUrl?: string;
+  sourcePlatform?: string;
+  videoUrl?: string;
+  rawContent?: string;
 }
 
-const { title, date, tags, excerpt } = Astro.props;
+const {
+  title,
+  date,
+  tags,
+  excerpt,
+  author = 'aibuilt.it',
+  category = 'ai-news',
+  contentType = 'news',
+  heroImage,
+  toolName,
+  toolUrl,
+  sourceUrl,
+  sourcePlatform,
+  videoUrl,
+  rawContent = '',
+} = Astro.props;
+
+const readTime = getReadingTime(rawContent);
+const cat = getCategoryBySlug(category);
+const categoryName = cat?.name || 'AI News';
+
+const breadcrumbItems = [
+  { label: 'Home', href: '/' },
+  { label: categoryName, href: `/${category}/` },
+  { label: title },
+];
+
+// Article JSON-LD
+const jsonLd: Record<string, any> = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: title,
+  description: excerpt || '',
+  datePublished: date.toISOString(),
+  author: { '@type': 'Person', name: author },
+  publisher: {
+    '@type': 'Organization',
+    name: 'aibuilt.it',
+    url: 'https://aibuilt.it',
+  },
+};
+if (heroImage) jsonLd.image = heroImage;
 ---
 
 <BaseLayout
   title={`${title} — aibuilt.it`}
   description={excerpt || `Read "${title}" on aibuilt.it`}
   articleDate={date.toISOString()}
+  lightContent={true}
+  jsonLd={jsonLd}
 >
-  <article>
-    <header class="mb-10">
-      <h1 class="text-3xl sm:text-4xl font-bold mb-4 text-gray-900 leading-tight">{title}</h1>
-      <div class="flex flex-wrap items-center gap-3 text-sm text-gray-500">
-        <time datetime={date.toISOString()}>{formatDate(date)}</time>
-        <span class="text-gray-300">·</span>
-        <div class="flex flex-wrap gap-2">
-          {tags.map((tag) => (
-            <span class="px-2.5 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-              {tag}
-            </span>
-          ))}
-        </div>
+  <!-- Dark header area -->
+  <div style="background: #0a0a0a;">
+    <div class="w-full max-w-container mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12">
+      <Breadcrumb items={breadcrumbItems} />
+
+      <div class="mt-6 flex flex-wrap items-center gap-2">
+        <CategoryBadge categorySlug={category} />
+        <ContentTypePill type={contentType} />
       </div>
-    </header>
 
-    <div class="prose max-w-none">
-      <slot />
+      <h1 class="mt-4 font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight max-w-4xl">
+        {title}
+      </h1>
+
+      {excerpt && (
+        <p class="mt-4 text-lg text-slate-400 max-w-2xl leading-relaxed">
+          {excerpt}
+        </p>
+      )}
+
+      <div class="mt-6 flex flex-wrap items-center gap-4 text-sm text-slate-500">
+        <span class="flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+          </svg>
+          {author}
+        </span>
+        <span class="flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {readTime}
+        </span>
+        <time datetime={date.toISOString()} class="flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+          </svg>
+          {formatDate(date)}
+        </time>
+      </div>
     </div>
-  </article>
 
-  <nav class="mt-12 pt-8 border-t border-gray-200">
-    <a
-      href="/"
-      class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium min-h-[44px]"
-    >
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-      </svg>
-      All articles
-    </a>
-  </nav>
+    <!-- Hero Image -->
+    {heroImage && (
+      <div class="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-0">
+        <img
+          src={heroImage}
+          alt={title}
+          class="w-full rounded-t-xl object-cover max-h-[500px]"
+          loading="eager"
+        />
+      </div>
+    )}
+  </div>
+
+  <!-- White content area -->
+  <div class="bg-white">
+    <div class="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
+      <!-- Case Study Meta Box -->
+      {(toolName || sourceUrl) && (
+        <div class="mb-8">
+          <CaseStudyMeta
+            toolName={toolName}
+            toolUrl={toolUrl}
+            sourceUrl={sourceUrl}
+            sourcePlatform={sourcePlatform}
+          />
+        </div>
+      )}
+
+      <!-- Video Embed -->
+      {videoUrl && (
+        <div class="mb-8 aspect-video rounded-lg overflow-hidden">
+          <iframe
+            src={videoUrl}
+            class="w-full h-full"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+          />
+        </div>
+      )}
+
+      <!-- Article Body -->
+      <div class="prose max-w-none">
+        <slot />
+      </div>
+
+      <!-- Source Attribution -->
+      {sourceUrl && sourcePlatform && (
+        <div class="mt-8 pt-6 border-t border-gray-200">
+          <p class="text-sm text-gray-500">
+            Originally discussed on
+            <a href={sourceUrl} target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+              {sourcePlatform === 'reddit' ? 'Reddit' :
+               sourcePlatform === 'hackernews' ? 'Hacker News' :
+               sourcePlatform === 'producthunt' ? 'Product Hunt' :
+               sourcePlatform === 'twitter' ? 'Twitter/X' : 'the web'}
+            </a>
+          </p>
+        </div>
+      )}
+
+      <!-- Tags -->
+      {tags.length > 0 && (
+        <div class="mt-8 pt-6 border-t border-gray-200">
+          <div class="flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <a
+                href={`/tag/${tag.toLowerCase().replace(/\s+/g, '-')}/`}
+                class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium hover:bg-gray-200 transition-colors"
+              >
+                {tag}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+
+  <!-- Dark section: Back link -->
+  <div style="background: #0a0a0a;">
+    <div class="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <a
+        href={`/${category}/`}
+        class="inline-flex items-center gap-2 text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        More in {categoryName}
+      </a>
+    </div>
+  </div>
 </BaseLayout>

@@ -1,0 +1,74 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ArticleCard from '../../components/ArticleCard.astro';
+import { getCollection } from 'astro:content';
+
+export async function getStaticPaths() {
+  const articles = await getCollection('articles');
+  const tagSet = new Set<string>();
+
+  articles.forEach((article) => {
+    article.data.tags.forEach((tag: string) => {
+      tagSet.add(tag.toLowerCase().replace(/\s+/g, '-'));
+    });
+  });
+
+  return Array.from(tagSet).map((tag) => ({
+    params: { tag },
+    props: {
+      tag,
+      displayTag: tag.replace(/-/g, ' '),
+    },
+  }));
+}
+
+interface Props {
+  tag: string;
+  displayTag: string;
+}
+
+const { tag, displayTag } = Astro.props;
+const allArticles = await getCollection('articles');
+const articles = allArticles
+  .filter((a) =>
+    a.data.tags.some((t: string) => t.toLowerCase().replace(/\s+/g, '-') === tag)
+  )
+  .sort((a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime());
+---
+
+<BaseLayout
+  title={`${displayTag} — aibuilt.it`}
+  description={`Articles tagged with "${displayTag}" on aibuilt.it`}
+>
+  <div class="container py-16 md:py-24">
+    <div class="mb-12">
+      <p class="micro-label mb-3">Tag</p>
+      <h1 class="font-display text-3xl md:text-4xl font-bold text-white capitalize">
+        {displayTag}
+      </h1>
+      <p class="mt-2 text-slate-400">{articles.length} article{articles.length !== 1 ? 's' : ''}</p>
+    </div>
+
+    {articles.length > 0 ? (
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {articles.map((article) => (
+          <ArticleCard article={{
+            title: article.data.title,
+            excerpt: article.data.excerpt,
+            date: article.data.date,
+            author: article.data.author || 'aibuilt.it',
+            category: article.data.category || 'ai-news',
+            contentType: article.data.contentType || 'news',
+            heroImage: article.data.heroImage,
+            slug: article.slug,
+          }} />
+        ))}
+      </div>
+    ) : (
+      <div class="text-center py-20">
+        <p class="text-slate-500">No articles with this tag yet.</p>
+        <a href="/" class="mt-4 inline-block text-indigo-400 hover:text-indigo-300 text-sm font-medium">← Back to home</a>
+      </div>
+    )}
+  </div>
+</BaseLayout>

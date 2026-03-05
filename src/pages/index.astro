@@ -1,64 +1,196 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import ArticleCard from '../components/ArticleCard.astro';
 import { getCollection } from 'astro:content';
-import { formatDate } from '../utils/date';
+import { categories } from '../data/categories';
 
-const articles = (await getCollection('articles')).sort(
+const allArticles = (await getCollection('articles')).sort(
   (a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime()
 );
+
+const featured = allArticles.filter((a) => a.data.featured);
+const latest = allArticles.slice(0, 12);
+
+// Count articles per category
+const categoryCounts: Record<string, number> = {};
+allArticles.forEach((a) => {
+  const cat = a.data.category || 'ai-news';
+  categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+});
+
+// Homepage JSON-LD
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'aibuilt.it',
+  url: 'https://aibuilt.it',
+  description: 'Real AI implementations. Real results. Case studies, tool reviews, and guides for business.',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: 'https://aibuilt.it/search?q={search_term_string}',
+    'query-input': 'required name=search_term_string',
+  },
+};
+
+function toArticleProps(article: any) {
+  return {
+    title: article.data.title,
+    excerpt: article.data.excerpt,
+    date: article.data.date,
+    author: article.data.author || 'aibuilt.it',
+    category: article.data.category || 'ai-news',
+    contentType: article.data.contentType || 'news',
+    heroImage: article.data.heroImage,
+    slug: article.slug,
+  };
+}
 ---
 
-<BaseLayout title="aibuilt.it — AI-Powered Articles">
-  <section>
-    <div class="mb-12">
-      <h1 class="text-5xl font-bold text-gray-900 mb-4">aibuilt.it</h1>
-      <p class="text-lg text-gray-600">
-        AI-powered articles on tech, web development, and beyond. Fast, clean, no bloat.
+<BaseLayout title="aibuilt.it — Real AI Implementations. Real Results." jsonLd={jsonLd}>
+  <!-- ══════════════════════════════════════════════════════════════════
+       HERO SECTION
+       ══════════════════════════════════════════════════════════════════ -->
+  <section class="relative overflow-hidden">
+    <!-- Gradient mesh blobs -->
+    <div class="gradient-blob w-[600px] h-[600px] bg-indigo-500 top-[-200px] left-[-100px]" style="position: absolute;"></div>
+    <div class="gradient-blob w-[500px] h-[500px] bg-violet-600 top-[100px] right-[-150px]" style="position: absolute;"></div>
+
+    <div class="container relative z-10 flex flex-col items-center text-center py-24 md:py-36 lg:py-44">
+      <!-- Micro label -->
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] mb-8">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="text-xs text-slate-400 font-medium">New case studies every week</span>
+      </div>
+
+      <!-- Headline -->
+      <h1 class="font-display font-bold text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white leading-[1.08] tracking-tight max-w-4xl">
+        aibuilt<span class="text-indigo-400">.it</span>
+      </h1>
+
+      <!-- Tagline -->
+      <p class="mt-5 text-lg md:text-xl text-slate-400 max-w-xl leading-relaxed">
+        Real AI implementations. Real results.
       </p>
+      <p class="mt-2 text-sm md:text-base text-slate-500 max-w-lg">
+        Discover how businesses are using AI to transform marketing, sales, content, and operations — with real case studies, tool reviews, and actionable guides.
+      </p>
+
+      <!-- CTA Row -->
+      <div class="mt-10 flex flex-col sm:flex-row items-center gap-3 w-full max-w-md">
+        <a
+          href="#featured"
+          class="w-full sm:w-auto px-6 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-semibold transition-all hover:shadow-lg hover:shadow-indigo-500/20 flex items-center justify-center gap-2"
+        >
+          Explore Case Studies
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+          </svg>
+        </a>
+      </div>
+
+      <!-- Stats -->
+      <div class="mt-14 flex items-center gap-8 md:gap-12">
+        <div class="text-center">
+          <p class="font-display text-2xl md:text-3xl font-bold text-white">{allArticles.length}+</p>
+          <p class="text-xs text-slate-500 mt-1">Articles</p>
+        </div>
+        <div class="text-center">
+          <p class="font-display text-2xl md:text-3xl font-bold text-white">{categories.length}</p>
+          <p class="text-xs text-slate-500 mt-1">Categories</p>
+        </div>
+        <div class="text-center">
+          <p class="font-display text-2xl md:text-3xl font-bold text-white">Free</p>
+          <p class="text-xs text-slate-500 mt-1">Always</p>
+        </div>
+      </div>
     </div>
+  </section>
 
-    <div class="space-y-8">
-      {articles.map((article) => (
-        <article class="pb-8 border-b border-gray-200 last:border-0">
-          <a href={`/${article.slug}`} class="group">
-            <h2 class="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-              {article.data.title}
-            </h2>
-          </a>
+  <!-- ══════════════════════════════════════════════════════════════════
+       FEATURED ARTICLES
+       ══════════════════════════════════════════════════════════════════ -->
+  {featured.length > 0 && (
+    <section id="featured" class="container py-20 md:py-28 reveal-on-scroll">
+      <div class="mb-10">
+        <p class="micro-label mb-3">Featured</p>
+        <h2 class="font-display text-2xl md:text-3xl font-bold text-white">
+          Editor's Picks
+        </h2>
+      </div>
 
-          <div class="mt-2 flex flex-col sm:flex-row sm:items-center sm:gap-4 text-sm text-gray-600">
-            <time datetime={article.data.date.toISOString()}>
-              {formatDate(article.data.date)}
-            </time>
-            <div class="flex gap-2">
-              {article.data.tags.map((tag) => (
-                <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium">
-                  {tag}
-                </span>
-              ))}
-            </div>
+      <div class="space-y-6">
+        {featured[0] && (
+          <ArticleCard article={toArticleProps(featured[0])} variant="featured" />
+        )}
+        {featured.length > 1 && (
+          <div class="grid md:grid-cols-2 gap-6">
+            {featured.slice(1, 3).map((article) => (
+              <ArticleCard article={toArticleProps(article)} />
+            ))}
           </div>
+        )}
+      </div>
+    </section>
+  )}
 
-          <p class="mt-4 text-gray-700 leading-relaxed">
-            {article.data.excerpt}
-          </p>
-
-          <a
-            href={`/${article.slug}`}
-            class="mt-4 inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium text-sm"
-          >
-            Read more
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </a>
-        </article>
-      ))}
+  <!-- ══════════════════════════════════════════════════════════════════
+       CATEGORY QUICK-NAV
+       ══════════════════════════════════════════════════════════════════ -->
+  <section class="py-20 md:py-28 reveal-on-scroll">
+    <div class="container mb-10">
+      <p class="micro-label mb-3">Browse by Topic</p>
+      <h2 class="font-display text-2xl md:text-3xl font-bold text-white">
+        Categories
+      </h2>
     </div>
 
-    {articles.length === 0 && (
-      <div class="text-center py-12">
-        <p class="text-gray-600">No articles yet. Check back soon!</p>
+    <div class="container">
+      <div class="flex gap-4 overflow-x-auto pb-4 md:grid md:grid-cols-4 md:overflow-visible scrollbar-hide">
+        {categories.map((cat) => (
+          <a
+            href={`/${cat.slug}/`}
+            class="glass-card rounded-xl p-5 min-w-[220px] md:min-w-0 group"
+          >
+            <div class={`w-10 h-10 rounded-lg flex items-center justify-center mb-4 ${cat.badgeBg} ${cat.badgeColor}`}>
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+              </svg>
+            </div>
+            <h3 class="font-display font-semibold text-white text-sm mb-1 group-hover:text-indigo-300 transition-colors">
+              {cat.name}
+            </h3>
+            <p class="text-xs text-slate-500 mb-3 line-clamp-2">
+              {cat.description}
+            </p>
+            <span class="text-xs text-zinc-600 font-medium">
+              {categoryCounts[cat.slug] || 0} articles
+            </span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       LATEST ARTICLES FEED
+       ══════════════════════════════════════════════════════════════════ -->
+  <section id="latest" class="container py-20 md:py-28 reveal-on-scroll">
+    <div class="mb-10">
+      <p class="micro-label mb-3">Latest</p>
+      <h2 class="font-display text-2xl md:text-3xl font-bold text-white">
+        Recent Articles
+      </h2>
+    </div>
+
+    {latest.length > 0 ? (
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {latest.map((article) => (
+          <ArticleCard article={toArticleProps(article)} />
+        ))}
+      </div>
+    ) : (
+      <div class="text-center py-20">
+        <p class="text-slate-500 text-lg">No articles yet. Check back soon!</p>
       </div>
     )}
   </section>

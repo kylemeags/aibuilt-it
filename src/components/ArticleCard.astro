@@ -1,0 +1,97 @@
+---
+import CategoryBadge from './CategoryBadge.astro';
+import ContentTypePill from './ContentTypePill.astro';
+import { formatDate } from '../utils/date';
+
+interface Props {
+  article: any;
+  variant?: 'default' | 'featured';
+}
+
+const { article, variant = 'default' } = Astro.props;
+const isFeatured = variant === 'featured';
+const url = `/${article.category}/${article.slug}`;
+---
+
+<article
+  class:list={[
+    'group rounded-2xl overflow-hidden transition-all duration-300',
+    'bg-white/[0.03] backdrop-blur-[12px] border border-white/[0.06]',
+    'hover:bg-white/[0.05] hover:border-indigo-500/30 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(99,102,241,0.08)]',
+    isFeatured ? 'md:flex md:flex-row' : 'flex flex-col',
+  ]}
+>
+  {/* Image Section */}
+  <div
+    class:list={[
+      'relative overflow-hidden',
+      isFeatured ? 'md:w-[55%] aspect-[16/9] md:aspect-auto' : 'aspect-[16/9]',
+    ]}
+  >
+    {article.heroImage ? (
+      <img
+        src={article.heroImage}
+        alt={article.title}
+        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        loading="lazy"
+      />
+    ) : (
+      <div class="w-full h-full bg-gradient-to-br from-indigo-500/20 via-violet-500/10 to-transparent" />
+    )}
+
+    {/* Gradient overlay */}
+    <div class="absolute inset-0 bg-gradient-to-t from-[#0a0a0a]/60 via-transparent" />
+
+    {/* Badges overlaid on image */}
+    <div class="absolute top-3 left-3 flex items-center gap-2">
+      {article.category && <CategoryBadge categorySlug={article.category} />}
+      {article.contentType && <ContentTypePill type={article.contentType} />}
+    </div>
+  </div>
+
+  {/* Content Section */}
+  <div
+    class:list={[
+      'flex flex-col justify-center p-5',
+      isFeatured ? 'md:w-[45%] md:p-8' : '',
+    ]}
+  >
+    <h3
+      class:list={[
+        'font-display font-semibold text-white leading-tight mb-2',
+        isFeatured ? 'text-xl md:text-2xl' : 'text-lg',
+      ]}
+    >
+      <a
+        href={url}
+        class="hover:text-indigo-300 transition-colors duration-200"
+      >
+        {article.title}
+      </a>
+    </h3>
+
+    {article.excerpt && (
+      <p class="text-slate-400 text-sm leading-relaxed line-clamp-3 mb-4">
+        {article.excerpt}
+      </p>
+    )}
+
+    <div class="flex items-center gap-3 text-xs text-slate-500">
+      {article.author && <span>{article.author}</span>}
+      {article.readTime && (
+        <>
+          <span class="text-zinc-700">&middot;</span>
+          <span>{article.readTime}</span>
+        </>
+      )}
+      {article.date && (
+        <>
+          <span class="text-zinc-700">&middot;</span>
+          <time datetime={new Date(article.date).toISOString()}>
+            {formatDate(article.date)}
+          </time>
+        </>
+      )}
+    </div>
+  </div>
+</article>
